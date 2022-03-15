@@ -1,3 +1,5 @@
+# Chainlink Oracle Datafeed
+Chainlink oracle feed with solidity, ethers.js and hardhat to get latest price of BTC/ETH pair
 # Advanced Sample Hardhat Project
 
 This project demonstrates an advanced Hardhat use case, integrating other tools commonly used alongside Hardhat in the ecosystem.
