@@ -3,34 +3,40 @@ pragma solidity ^0.8.7;
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-contract PriceConsumerV3{
+interface IERC20{
+    function transfer(address to, uint256 amount) external returns (bool);
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+
+
+contract PriceConsumerV3 {
 
     AggregatorV3Interface internal priceFeed;
 
     struct swapInfo{
-        address swapFrom;
-        address swapTo;
-        address ownerAddress;
-        uint usdcbalance;
-        uint ethbalance;
+        address owner;
+        uint amount;
     }
 
-    struct buyerInfo{
-        address ownedtoken;
-        uint buyAmount;
-        uint balance;
-        uint usdcbalance;
-        uint ethbalance;
-    }
+    address MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address MAINNET_INCH = 0x111111111117dC0aa78b770fA6A738034120C302;
 
-    uint decimal = 10**18;
+    IERC20 USDC = IERC20(MAINNET_USDC);
+    IERC20 INCH = IERC20(MAINNET_INCH);
 
-    uint swapId;
+    mapping(uint => swapInfo) orders;
 
-    mapping(uint => swapInfo) offer;
+    uint orderCounter;
 
-    mapping(address => buyerInfo) buyer;
+    uint decimals = 10**8;
 
+    uint rate;
+    uint swappedAmount;
     /**
      * Network: Kovan
      * Aggregator: ETH/USD
@@ -54,33 +60,39 @@ contract PriceConsumerV3{
         return price;
     }
 
-    function swapTokens(address _eth, uint _amount, address _usdc, address _owner) public{
-        swapInfo storage s = offer[swapId];
-        s.swapFrom = _eth;
-        s.swapTo = _usdc;
-        s.ownerAddress = _owner;
-        s.usdcbalance = 0;
-        s.ethbalance = _amount;
-        swapId++;
+    function swapUSDCforINCH(uint amount) public {
+        swapInfo storage o= orders[orderCounter];
+        o.amount= amount;
+        o.owner=msg.sender;
+        rate = uint(getLatestPrice())/decimals;
+        swappedAmount = amount / rate;
+        require(INCH.balanceOf(address(this))>= swappedAmount , "Insufficent funds");
+        USDC.transferFrom(msg.sender, address(this), swappedAmount);
+        (bool status) = INCH.transfer(msg.sender, swappedAmount);
+        require(status, "transaction failed");
+        orderCounter++;
+    } 
+
+    function swapINCHforUSDC(uint amount) public {
+        swapInfo storage o= orders[orderCounter];
+        o.amount= amount;
+        o.owner=msg.sender;
+        rate = uint(getLatestPrice())/decimals;
+        swappedAmount = amount * rate;
+        require(USDC.balanceOf(address(this))>= swappedAmount , "Insufficent funds");
+        INCH.transferFrom(msg.sender, address(this), swappedAmount);
+        (bool status) = USDC.transfer(msg.sender, swappedAmount);
+        require(status, "transaction failed");
+        orderCounter++;
+    } 
+
+    function viewRate() public view returns(uint, uint, uint){
+        return (rate, uint(getLatestPrice()), swappedAmount);
     }
 
-    function swapper(uint _swapId, uint _amount, address _buyerAdd, address _usdc) public{
-        swapInfo storage sI = offer[_swapId];
-        // require(sI.amount, "amount too low");
-        uint rate = uint(getLatestPrice());
-        uint sendUsdcAmount = rate / _amount;
-        uint ethAmount = rate * _amount;
-        // IERC20(sI.swapFrom).transfer(sI.ownerAddress, sendAmount);
-        // IERC20(sI.swapTo).transferFrom(sI.ownerAddress,msg.sender , _amount);
-        buyer[_buyerAdd].ownedtoken = _usdc;
-        buyer[_buyerAdd].buyAmount = _amount;
-        sI.usdcbalance += sendUsdcAmount;
-        buyer[_buyerAdd].usdcbalance -= sendUsdcAmount;
-        sI.ethbalance -= ethAmount;
-        buyer[_buyerAdd].ethbalance += ethAmount;
-    }
-
-    function buyerBal(address _buyerAdd) public view returns(uint){
-        return buyer[_buyerAdd].ethbalance;
+    function viewOrder() public view returns(swapInfo memory){
+        return orders[0];
     }
 }
+
+
