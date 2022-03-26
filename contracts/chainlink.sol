@@ -64,11 +64,12 @@ contract PriceConsumerV3 {
         swapInfo storage o= orders[orderCounter];
         o.amount= amount;
         o.owner=msg.sender;
-        rate = uint(getLatestPrice())/decimals;
-        swappedAmount = amount / rate;
-        require(INCH.balanceOf(address(this))>= swappedAmount , "Insufficent funds");
-        USDC.transferFrom(msg.sender, address(this), swappedAmount);
-        (bool status) = INCH.transfer(msg.sender, swappedAmount);
+        uint decAmount = amount * decimals;
+        rate = uint(getLatestPrice());
+        swappedAmount = decAmount * rate;
+        require(INCH.balanceOf(address(this))>= (swappedAmount/10**16) , "Insufficent funds");
+        USDC.transferFrom(msg.sender, address(this), (swappedAmount/10**16));
+        (bool status) = INCH.transfer(msg.sender, (swappedAmount/10**16));
         require(status, "transaction failed");
         orderCounter++;
     } 
@@ -77,14 +78,15 @@ contract PriceConsumerV3 {
         swapInfo storage o= orders[orderCounter];
         o.amount= amount;
         o.owner=msg.sender;
-        rate = uint(getLatestPrice())/decimals;
-        swappedAmount = amount * rate;
-        require(USDC.balanceOf(address(this))>= swappedAmount , "Insufficent funds");
-        INCH.transferFrom(msg.sender, address(this), swappedAmount);
-        (bool status) = USDC.transfer(msg.sender, swappedAmount);
+        uint decAmount = amount * decimals;
+        rate = uint(getLatestPrice());
+        swappedAmount = decAmount / rate;
+        require(USDC.balanceOf(address(this))>= (swappedAmount/10**16) , "Insufficent funds");
+        INCH.transferFrom(msg.sender, address(this), (swappedAmount/10**16));
+        (bool status) = USDC.transfer(msg.sender, (swappedAmount/10**16));
         require(status, "transaction failed");
         orderCounter++;
-    } 
+    }
 
     function viewRate() public view returns(uint, uint, uint){
         return (rate, uint(getLatestPrice()), swappedAmount);
