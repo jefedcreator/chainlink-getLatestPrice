@@ -20,7 +20,7 @@ contract PriceConsumerV3 {
 
     struct swapInfo{
         address owner;
-        uint amount;
+        uint96 amount;
     }
 
     address MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -31,12 +31,9 @@ contract PriceConsumerV3 {
 
     mapping(uint => swapInfo) orders;
 
-    uint orderCounter;
+    uint144 orderCounter;
+    uint144 decimals = 10**8;
 
-    uint decimals = 10**8;
-
-    uint rate;
-    uint swappedAmount;
     /**
      * Network: Kovan
      * Aggregator: ETH/USD
@@ -61,12 +58,13 @@ contract PriceConsumerV3 {
     }
 
     function swapUSDCforINCH(uint amount) public {
+        require(USDC.balanceOf(msg.sender)>= amount, "Insufficent balance");
         swapInfo storage o= orders[orderCounter];
         o.amount= amount;
         o.owner=msg.sender;
         uint decAmount = amount * decimals;
-        rate = uint(getLatestPrice());
-        swappedAmount = decAmount * rate;
+        uint rate = uint(getLatestPrice());
+        uint swappedAmount = decAmount * rate;
         require(INCH.balanceOf(address(this))>= (swappedAmount/10**16) , "Insufficent funds");
         USDC.transferFrom(msg.sender, address(this), (swappedAmount/10**16));
         (bool status) = INCH.transfer(msg.sender, (swappedAmount/10**16));
@@ -75,12 +73,13 @@ contract PriceConsumerV3 {
     } 
 
     function swapINCHforUSDC(uint amount) public {
+        require(INCH.balanceOf(msg.sender)>= amount, "Insufficent balance");
         swapInfo storage o= orders[orderCounter];
         o.amount= amount;
         o.owner=msg.sender;
         uint decAmount = amount * decimals;
-        rate = uint(getLatestPrice());
-        swappedAmount = decAmount / rate;
+        uint rate = uint(getLatestPrice());
+        uint swappedAmount = decAmount / rate;
         require(USDC.balanceOf(address(this))>= (swappedAmount/10**16) , "Insufficent funds");
         INCH.transferFrom(msg.sender, address(this), (swappedAmount/10**16));
         (bool status) = USDC.transfer(msg.sender, (swappedAmount/10**16));
@@ -88,13 +87,13 @@ contract PriceConsumerV3 {
         orderCounter++;
     }
 
-    function viewRate() public view returns(uint, uint, uint){
-        return (rate, uint(getLatestPrice()), swappedAmount);
-    }
+    // function viewRate() public view returns(uint, uint, uint){
+    //     return (rate, uint(getLatestPrice()), swappedAmount);
+    // }
 
-    function viewOrder() public view returns(swapInfo memory){
-        return orders[0];
-    }
+    // function viewOrder() public view returns(swapInfo memory){
+    //     return orders[0];
+    // }
 }
 
 
